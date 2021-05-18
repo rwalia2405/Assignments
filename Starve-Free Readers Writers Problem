@@ -1,0 +1,78 @@
+// to prevent startvation we will implement a kind of back-and-forth form of fairness:
+//  1. Once a reader is waiting, readers will get in next.
+//  2. If a writer is waiting, one writer will get in next.
+// for achieving this, solution is implemented using monitors.
+
+
+// defining variables used for defining a particular state
+int NReaders = 0; // number of active readers, initially = 0
+int WaitingReaders = 0; // number of waiting readers , initially = 0
+int NWriters = 0; // number of active writers, initially = 0
+int WaitingWriters = 0; // number of waiting writers, initially = 0
+
+// defining condition variables for mutual exclusion
+Condition canRead = NULL;
+Condition canWrite = NULL;
+
+// funtion for writer if he wants to write
+Void BeginWrite()
+{
+  
+    // A writer can enter if there are no other active writers and no readers are waiting
+    if (NWriters == 1 || NReaders > 0) {
+  
+        ++WaitingWriters;
+        wait(CanWrite);
+        --WaitingWriters;
+    }
+  
+    NWriters = 1;
+}
+// function for writer after he has finished writing
+Void EndWrite()
+{
+  
+    NWriters = 0;
+  
+    // Checks to see if any readers are waiting
+    if (WaitingReaders)
+  
+        Signal(CanRead);
+  
+    else
+  
+        Signal(CanWrite);
+}
+// funtion for reader if he wants to read
+Void BeginRead()
+{
+  
+    // A reader can enter if there are no writers active or waiting, so we can have many readers active all at once
+    if (NWriters == 1 || WaitingWriters > 0) {
+  
+        ++WaitingReaders;
+  
+        // Otherwise, a reader waits (maybe many do)
+        Wait(CanRead);
+  
+        --WaitingReaders;
+    }
+  
+    ++NReaders;
+    Signal(CanRead);
+}
+// function for reader after he has finished reading
+Void EndRead()
+{
+  
+    // When a reader finishes, if it was the last reader, it lets a writer in (if any is there).
+    if (--NReaders == 0)
+  
+        Signal(CanWrite);
+}
+
+
+// The above implementation tries to prevent starvation by doing following things:
+// 1. If a writer is waiting, readers queue up.
+// 2. If a reader (or another writer) is active or waiting, writers queue up.
+// 3. This is mostly fair, although once it lets a reader in, it lets ALL waiting readers in all at once, even if some showed up “after” other waiting writers.
